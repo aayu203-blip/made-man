@@ -1,0 +1,1486 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MADE MAN</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0c0c0f;
+      --bg2: #111116;
+      --bg3: #16161c;
+      --card: rgba(255, 255, 255, 0.04);
+      --card-h: rgba(255, 255, 255, 0.07);
+      --neon-red: #ff2244;
+      --neon-purple: #9333ea;
+      --neon-green: #22ff66;
+      --neon-orange: #ff6b1a;
+      --neon-cyan: #00d4ff;
+      --neon-pink: #ff0080;
+      --cash-color: #22ff66;
+      --heat-color: #ff2244;
+      --rep-color: #9333ea;
+      --cred-color: #ff6b1a;
+      --text: #f0f0f0;
+      --text2: #888;
+      --text3: #444;
+      --border: rgba(255, 255, 255, 0.07);
+      --border-h: rgba(255, 34, 68, 0.4);
+      --font-title: 'Bebas Neue', sans-serif;
+      --font-body: 'Inter', sans-serif;
+      --font-mono: 'Space Mono', monospace;
+      /* Scanline overlay */
+      --scanlines: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0, 0, 0, 0.03) 2px, rgba(0, 0, 0, 0.03) 4px);
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html,
+    body {
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 13px;
+    }
+
+    /* Scanline texture across whole UI */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 9998;
+      background: var(--scanlines);
+      opacity: 0.4;
+    }
+
+    /* Background ambient glow */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background:
+        radial-gradient(ellipse 40% 30% at 10% 60%, rgba(255, 34, 68, 0.06) 0%, transparent 100%),
+        radial-gradient(ellipse 30% 40% at 90% 20%, rgba(147, 51, 234, 0.06) 0%, transparent 100%),
+        radial-gradient(ellipse 50% 30% at 50% 100%, rgba(34, 255, 102, 0.03) 0%, transparent 100%);
+    }
+
+    /* ─── LAYOUT ─── */
+    #app {
+      display: grid;
+      grid-template-rows: 38px 76px 1fr 28px;
+      height: 100vh;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ─── HEADLINE TICKER ─── */
+    #headline-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(255, 34, 68, 0.08);
+      border-bottom: 1px solid rgba(255, 34, 68, 0.2);
+      padding: 0 14px;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+
+    .hl-tag {
+      font-family: var(--font-title);
+      font-size: 13px;
+      color: var(--neon-red);
+      letter-spacing: 2px;
+      flex-shrink: 0;
+    }
+
+    .hl-dot {
+      color: var(--text3);
+    }
+
+    #headline {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      overflow: hidden;
+    }
+
+    .hl-main {
+      color: #fff;
+    }
+
+    .hl-sep {
+      color: var(--text3);
+      margin: 0 8px;
+    }
+
+    .hl-sub {
+      color: var(--text2);
+    }
+
+    /* ─── HUD ─── */
+    #hud {
+      display: grid;
+      grid-template-columns: 1fr auto auto auto auto auto;
+      align-items: center;
+      gap: 0;
+      background: var(--bg2);
+      border-bottom: 2px solid rgba(255, 34, 68, 0.25);
+      padding: 0;
+      position: relative;
+    }
+
+    #hud::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--neon-red), transparent);
+    }
+
+    #cash-block {
+      padding: 10px 16px;
+    }
+
+    #cash {
+      font-family: var(--font-title);
+      font-size: 32px;
+      color: var(--cash-color);
+      line-height: 1;
+      text-shadow: 0 0 20px rgba(34, 255, 102, 0.4), 0 0 60px rgba(34, 255, 102, 0.1);
+      letter-spacing: 1px;
+    }
+
+    #cps {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text2);
+      margin-top: 2px;
+    }
+
+    .hud-divider {
+      width: 1px;
+      height: 48px;
+      background: var(--border);
+    }
+
+    .hud-stat {
+      padding: 8px 18px;
+      text-align: center;
+    }
+
+    .hud-label {
+      font-family: var(--font-mono);
+      font-size: 8px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--text3);
+      margin-bottom: 4px;
+    }
+
+    .hud-val {
+      font-family: var(--font-title);
+      font-size: 22px;
+      line-height: 1;
+    }
+
+    #heat-val {
+      color: var(--neon-red);
+      text-shadow: 0 0 10px rgba(255, 34, 68, 0.5);
+    }
+
+    #rep-val {
+      color: var(--rep-color);
+      text-shadow: 0 0 10px rgba(147, 51, 234, 0.5);
+    }
+
+    #cred-val {
+      color: var(--cred-color);
+    }
+
+    /* Heat bar */
+    #heat-section {
+      padding: 10px 16px;
+      min-width: 130px;
+    }
+
+    #heat-info {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 5px;
+    }
+
+    #heat-lbl {
+      font-family: var(--font-mono);
+      font-size: 8px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--text3);
+    }
+
+    #heat-pct {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: var(--neon-red);
+    }
+
+    #heat-track {
+      background: rgba(255, 34, 68, 0.1);
+      border: 1px solid rgba(255, 34, 68, 0.15);
+      border-radius: 2px;
+      height: 6px;
+      overflow: hidden;
+    }
+
+    #heat-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.5s, background 0.5s;
+    }
+
+    #heat-fill.critical {
+      animation: heatFlash 0.25s infinite alternate;
+    }
+
+    @keyframes heatFlash {
+      from {
+        opacity: 1;
+      }
+
+      to {
+        opacity: 0.3;
+      }
+    }
+
+    /* Wings */
+    #wings-wrap {
+      padding: 8px 14px;
+    }
+
+    #wings-lbl {
+      font-family: var(--font-mono);
+      font-size: 8px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--text3);
+      margin-bottom: 5px;
+    }
+
+    #wings {
+      display: flex;
+      gap: 5px;
+    }
+
+    .wing-pip {
+      width: 26px;
+      height: 26px;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      opacity: 0.15;
+      transition: all 0.4s;
+    }
+
+    .wing-pip.active {
+      opacity: 1;
+      border-color: rgba(255, 255, 255, 0.3);
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.15);
+    }
+
+    #wing-cook.active {
+      border-color: rgba(0, 212, 255, 0.5);
+      box-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+    }
+
+    #wing-enforcer.active {
+      border-color: rgba(255, 34, 68, 0.5);
+      box-shadow: 0 0 10px rgba(255, 34, 68, 0.3);
+    }
+
+    #wing-ghost.active {
+      border-color: rgba(147, 51, 234, 0.5);
+      box-shadow: 0 0 10px rgba(147, 51, 234, 0.3);
+    }
+
+    #wing-don.active {
+      border-color: rgba(255, 107, 26, 0.5);
+      box-shadow: 0 0 10px rgba(255, 107, 26, 0.3);
+    }
+
+    /* ─── MAIN GRID ─── */
+    #main {
+      display: grid;
+      grid-template-columns: 200px 1fr 260px 180px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* ─── LEFT: CLICK COLUMN ─── */
+    #crime-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      padding: 18px 10px;
+      border-right: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(255, 34, 68, 0.03) 0%, transparent 50%);
+      overflow-y: auto;
+    }
+
+    /* THE GRAND CLICK ELEMENT */
+    #clicker-wrap {
+      position: relative;
+      width: 160px;
+      height: 160px;
+      flex-shrink: 0;
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    /* Outer aura rings */
+    .aura-ring {
+      position: absolute;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 34, 68, 0.15);
+      animation: auraExpand 2.5s ease-out infinite;
+    }
+
+    .aura-ring:nth-child(1) {
+      inset: -10px;
+      animation-delay: 0s;
+    }
+
+    .aura-ring:nth-child(2) {
+      inset: -20px;
+      animation-delay: 0.8s;
+    }
+
+    .aura-ring:nth-child(3) {
+      inset: -32px;
+      animation-delay: 1.6s;
+    }
+
+    @keyframes auraExpand {
+      0% {
+        opacity: 0.6;
+      }
+
+      100% {
+        opacity: 0;
+        transform: scale(1.1);
+      }
+    }
+
+    /* Spinning crime tape ring */
+    #crime-tape {
+      position: absolute;
+      inset: -5px;
+      border-radius: 50%;
+      border: 3px dashed rgba(255, 200, 0, 0.25);
+      animation: spinTape 15s linear infinite;
+    }
+
+    @keyframes spinTape {
+      from {
+        transform: rotate(0deg);
+      }
+
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* Main button */
+    #crime-btn {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: radial-gradient(circle at 38% 32%, #200010 0%, #120010 50%, #0a0009 100%);
+      border: 2px solid rgba(255, 34, 68, 0.5);
+      box-shadow:
+        0 0 0 1px rgba(255, 34, 68, 0.1),
+        0 0 30px rgba(255, 34, 68, 0.2),
+        0 0 80px rgba(255, 34, 68, 0.08),
+        inset 0 0 30px rgba(0, 0, 0, 0.8);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      transition: all 0.1s;
+      overflow: hidden;
+    }
+
+    #crime-btn::after {
+      content: '';
+      position: absolute;
+      top: 8%;
+      left: 18%;
+      width: 64%;
+      height: 28%;
+      background: radial-gradient(ellipse, rgba(255, 80, 80, 0.08) 0%, transparent 100%);
+      border-radius: 50%;
+    }
+
+    #crime-emblem {
+      font-size: 48px;
+      line-height: 1;
+      position: relative;
+      z-index: 1;
+      filter: drop-shadow(0 0 12px rgba(255, 34, 68, 0.6));
+    }
+
+    #crime-label {
+      font-family: var(--font-title);
+      font-size: 10px;
+      letter-spacing: 4px;
+      color: rgba(255, 100, 100, 0.8);
+      position: relative;
+      z-index: 1;
+    }
+
+    #clicker-wrap:hover #crime-btn {
+      border-color: rgba(255, 34, 68, 0.8);
+      box-shadow: 0 0 0 1px rgba(255, 34, 68, 0.2), 0 0 50px rgba(255, 34, 68, 0.35), 0 0 100px rgba(255, 34, 68, 0.12), inset 0 0 30px rgba(0, 0, 0, 0.8);
+    }
+
+    #clicker-wrap:active #crime-btn,
+    #clicker-wrap.clicked #crime-btn {
+      transform: scale(0.92);
+      box-shadow: 0 0 0 1px rgba(255, 34, 68, 0.4), 0 0 80px rgba(255, 34, 68, 0.6), 0 0 150px rgba(255, 34, 68, 0.2), inset 0 0 40px rgba(0, 0, 0, 0.9);
+      border-color: var(--neon-red);
+    }
+
+    /* Particle */
+    .cash-particle {
+      position: fixed;
+      pointer-events: none;
+      z-index: 9990;
+      font-family: var(--font-title);
+      font-size: 14px;
+      letter-spacing: 1px;
+      color: var(--cash-color);
+      text-shadow: 0 0 8px rgba(34, 255, 102, 0.8);
+      animation: cashFloat 0.8s ease-out forwards;
+    }
+
+    @keyframes cashFloat {
+      0% {
+        opacity: 1;
+        transform: translateY(0) translateX(var(--x, 0px));
+      }
+
+      100% {
+        opacity: 0;
+        transform: translateY(-55px) translateX(var(--x2, 0px));
+      }
+    }
+
+    #click-info {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: var(--text2);
+      text-align: center;
+    }
+
+    #click-info .val {
+      color: var(--cash-color);
+    }
+
+    /* Detective */
+    #detective-panel {
+      width: 100%;
+      border: 1px solid rgba(255, 34, 68, 0.15);
+      border-radius: 6px;
+      padding: 10px;
+      background: rgba(255, 34, 68, 0.03);
+    }
+
+    .det-head {
+      font-family: var(--font-mono);
+      font-size: 8px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: rgba(255, 34, 68, 0.6);
+      margin-bottom: 7px;
+    }
+
+    .det-namerow {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 5px;
+    }
+
+    .det-name {
+      font-family: var(--font-title);
+      font-size: 15px;
+      color: var(--neon-red);
+      letter-spacing: 1px;
+    }
+
+    .det-num {
+      font-family: var(--font-mono);
+      font-size: 8px;
+      color: var(--text3);
+    }
+
+    .det-track-bg {
+      background: rgba(255, 34, 68, 0.1);
+      border-radius: 2px;
+      height: 5px;
+      margin-bottom: 5px;
+      overflow: hidden;
+    }
+
+    .det-track-fill {
+      height: 100%;
+      border-radius: 2px;
+      background: linear-gradient(90deg, #ff2244, #ff6688);
+      transition: width 1s;
+    }
+
+    .det-status {
+      font-size: 9px;
+      color: var(--text2);
+      margin-bottom: 9px;
+      line-height: 1.6;
+      font-family: var(--font-mono);
+    }
+
+    .det-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .det-actions button {
+      padding: 5px 8px;
+      border-radius: 3px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      background: rgba(255, 255, 255, 0.02);
+      color: var(--text2);
+      font-family: var(--font-mono);
+      font-size: 9px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: left;
+    }
+
+    .det-actions button:hover {
+      border-color: rgba(255, 34, 68, 0.3);
+      color: var(--neon-red);
+      background: rgba(255, 34, 68, 0.04);
+    }
+
+    .det-actions button.elim {
+      border-color: rgba(255, 34, 68, 0.2);
+      color: rgba(255, 34, 68, 0.6);
+    }
+
+    .det-actions button.elim:hover {
+      background: rgba(255, 34, 68, 0.08);
+      color: var(--neon-red);
+    }
+
+    /* ─── BUILDINGS ─── */
+    #buildings-col {
+      overflow-y: auto;
+      border-right: 1px solid var(--border);
+      padding: 10px;
+    }
+
+    #buildings-col::-webkit-scrollbar {
+      width: 3px;
+    }
+
+    #buildings-col::-webkit-scrollbar-thumb {
+      background: rgba(255, 34, 68, 0.3);
+      border-radius: 2px;
+    }
+
+    .panel-head {
+      font-family: var(--font-title);
+      font-size: 16px;
+      letter-spacing: 3px;
+      color: var(--text3);
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 6px;
+      margin-bottom: 10px;
+    }
+
+    .building {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 11px 12px;
+      margin-bottom: 6px;
+      cursor: pointer;
+      transition: all 0.15s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .building::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background: var(--neon-red);
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+
+    .building:hover::before,
+    .building.can-afford::before {
+      opacity: 0.6;
+    }
+
+    .building.can-afford {
+      border-color: rgba(255, 34, 68, 0.2);
+    }
+
+    .building.can-afford:hover {
+      background: var(--card-h);
+      border-color: rgba(255, 34, 68, 0.4);
+    }
+
+    .building.cant-afford {
+      opacity: 0.5;
+    }
+
+    .building.locked {
+      opacity: 0.25;
+      cursor: default;
+      border-style: dashed;
+    }
+
+    .b-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 3px;
+    }
+
+    .b-name {
+      font-family: var(--font-title);
+      font-size: 14px;
+      letter-spacing: 0.5px;
+      color: #fff;
+    }
+
+    .b-count {
+      font-family: var(--font-title);
+      font-size: 16px;
+      color: var(--cash-color);
+    }
+
+    .b-desc {
+      font-size: 10px;
+      color: var(--text2);
+      margin-bottom: 4px;
+      line-height: 1.4;
+    }
+
+    .b-flavour {
+      font-size: 9px;
+      color: var(--text3);
+      font-style: italic;
+      border-left: 2px solid rgba(255, 34, 68, 0.2);
+      padding-left: 6px;
+      margin-bottom: 5px;
+      line-height: 1.5;
+    }
+
+    .b-foot {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .b-cost {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--cash-color);
+    }
+
+    .b-cost.over {
+      color: var(--neon-red);
+    }
+
+    .b-cps {
+      font-size: 9px;
+      color: var(--text2);
+    }
+
+    .wing-tag {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 7px;
+      padding: 1px 5px;
+      border-radius: 2px;
+      margin-left: 5px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .wing-tag.wing-cook {
+      background: rgba(0, 212, 255, 0.1);
+      color: #00d4ff;
+      border: 1px solid rgba(0, 212, 255, 0.2);
+    }
+
+    .wing-tag.wing-enforcer {
+      background: rgba(255, 34, 68, 0.1);
+      color: #ff2244;
+      border: 1px solid rgba(255, 34, 68, 0.2);
+    }
+
+    .wing-tag.wing-ghost {
+      background: rgba(147, 51, 234, 0.1);
+      color: #9333ea;
+      border: 1px solid rgba(147, 51, 234, 0.2);
+    }
+
+    .wing-tag.wing-don {
+      background: rgba(255, 107, 26, 0.1);
+      color: #ff6b1a;
+      border: 1px solid rgba(255, 107, 26, 0.2);
+    }
+
+    /* ─── UPGRADES ─── */
+    #upgrades-col {
+      overflow-y: auto;
+      border-right: 1px solid var(--border);
+      padding: 10px;
+    }
+
+    #upgrades-col::-webkit-scrollbar {
+      width: 3px;
+    }
+
+    #upgrades-col::-webkit-scrollbar-thumb {
+      background: rgba(147, 51, 234, 0.3);
+      border-radius: 2px;
+    }
+
+    .upgrade {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 9px;
+      margin-bottom: 5px;
+      cursor: pointer;
+      transition: all 0.15s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .upgrade::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background: var(--neon-purple);
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+
+    .upgrade.can-afford::before {
+      opacity: 0.6;
+    }
+
+    .upgrade.can-afford {
+      border-color: rgba(147, 51, 234, 0.2);
+    }
+
+    .upgrade.can-afford:hover {
+      background: var(--card-h);
+      border-color: rgba(147, 51, 234, 0.4);
+    }
+
+    .upgrade.cant-afford {
+      opacity: 0.4;
+    }
+
+    .u-name {
+      font-family: var(--font-title);
+      font-size: 13px;
+      color: var(--rep-color);
+      margin-bottom: 2px;
+      letter-spacing: 0.5px;
+    }
+
+    .u-desc {
+      font-size: 9px;
+      color: var(--text2);
+      margin-bottom: 4px;
+      line-height: 1.4;
+    }
+
+    .u-cost {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--rep-color);
+    }
+
+    .u-cost.over {
+      color: var(--neon-red);
+    }
+
+    .no-upgrades {
+      font-size: 9px;
+      color: var(--text3);
+      padding: 8px;
+      font-style: italic;
+      font-family: var(--font-mono);
+    }
+
+    /* ─── STATS ─── */
+    #stats-col {
+      overflow-y: auto;
+      padding: 10px;
+    }
+
+    #stats-col::-webkit-scrollbar {
+      width: 3px;
+    }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    }
+
+    .s-label {
+      font-family: var(--font-mono);
+      font-size: 8px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--text3);
+    }
+
+    .s-val {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text);
+    }
+
+    .s-val.green {
+      color: var(--cash-color);
+    }
+
+    .s-val.red {
+      color: var(--neon-red);
+    }
+
+    .s-val.purple {
+      color: var(--rep-color);
+    }
+
+    .s-val.orange {
+      color: var(--cred-color);
+    }
+
+    .prestige-btn {
+      margin-top: 14px;
+      width: 100%;
+      padding: 11px 6px;
+      background: rgba(255, 34, 68, 0.08);
+      border: 1px solid rgba(255, 34, 68, 0.35);
+      border-radius: 4px;
+      color: var(--neon-red);
+      font-family: var(--font-title);
+      font-size: 15px;
+      letter-spacing: 3px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .prestige-btn:hover {
+      background: rgba(255, 34, 68, 0.15);
+      box-shadow: 0 0 15px rgba(255, 34, 68, 0.2);
+    }
+
+    /* ─── FOOTER ─── */
+    #footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+      background: var(--bg2);
+      border-top: 1px solid rgba(255, 34, 68, 0.15);
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: var(--text3);
+    }
+
+    .footer-brand {
+      color: rgba(255, 34, 68, 0.6);
+      letter-spacing: 3px;
+      font-family: var(--font-title);
+      font-size: 14px;
+    }
+
+    /* ─── EVENT SIDEBAR PANEL (replaces full-screen modal) ─── */
+    #event-panel {
+      position: fixed;
+      top: 0;
+      right: -380px;
+      width: 360px;
+      height: 100%;
+      background: linear-gradient(160deg, #0f0010 0%, #0a0008 100%);
+      border-left: 2px solid var(--neon-red);
+      box-shadow: -10px 0 50px rgba(255, 34, 68, 0.15);
+      z-index: 500;
+      transition: right 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+      padding: 0;
+    }
+
+    #event-panel.open {
+      right: 0;
+    }
+
+    #event-panel::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--neon-red), var(--neon-pink));
+    }
+
+    /* Cash strip in panels */
+    .panel-cash-strip {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 16px;
+      background: rgba(34, 255, 102, 0.05);
+      border-bottom: 1px solid rgba(34, 255, 102, 0.12);
+    }
+
+    .pcs-label {
+      font-family: var(--font-mono);
+      font-size: 8px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: rgba(34, 255, 102, 0.5);
+    }
+
+    .pcs-val {
+      font-family: var(--font-title);
+      font-size: 22px;
+      color: var(--cash-color);
+      text-shadow: 0 0 10px rgba(34, 255, 102, 0.3);
+      letter-spacing: 1px;
+    }
+
+    #event-type-tag {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--neon-red);
+      padding: 12px 16px 6px;
+      opacity: 0.7;
+    }
+
+    #event-title {
+      font-family: var(--font-title);
+      font-size: 26px;
+      letter-spacing: 2px;
+      color: #fff;
+      padding: 0 16px 12px;
+      line-height: 1.2;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    #event-body {
+      padding: 14px 16px;
+      font-size: 12px;
+      color: var(--text2);
+      line-height: 1.8;
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    #event-body p {
+      margin-bottom: 8px;
+    }
+
+    #event-buttons {
+      padding: 12px 16px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    #event-buttons button {
+      padding: 11px 16px;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text);
+      font-family: var(--font-title);
+      font-size: 14px;
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: left;
+    }
+
+    #event-buttons button:hover {
+      border-color: rgba(255, 34, 68, 0.5);
+      color: #fff;
+      background: rgba(255, 34, 68, 0.06);
+    }
+
+    #event-buttons button.danger-choice {
+      border-color: rgba(255, 34, 68, 0.25);
+      color: rgba(255, 34, 68, 0.8);
+    }
+
+    #event-buttons button.danger-choice:hover {
+      background: rgba(255, 34, 68, 0.1);
+      color: var(--neon-red);
+    }
+
+    #event-buttons button:disabled {
+      opacity: 0.2;
+      cursor: not-allowed;
+    }
+
+    /* Story panel — purple tint */
+    #story-panel {
+      position: fixed;
+      top: 0;
+      left: -380px;
+      width: 360px;
+      height: 100%;
+      background: linear-gradient(160deg, #0a0015 0%, #07000f 100%);
+      border-right: 2px solid var(--neon-purple);
+      box-shadow: 10px 0 50px rgba(147, 51, 234, 0.12);
+      z-index: 500;
+      transition: left 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+    }
+
+    #story-panel.open {
+      left: 0;
+    }
+
+    #story-panel::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--neon-pink), var(--neon-purple));
+    }
+
+    #story-tag {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--neon-purple);
+      padding: 12px 16px 6px;
+      opacity: 0.7;
+    }
+
+    #story-title {
+      font-family: var(--font-title);
+      font-size: 26px;
+      letter-spacing: 2px;
+      color: #fff;
+      padding: 0 16px 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    #story-body {
+      padding: 14px 16px;
+      font-size: 12px;
+      color: var(--text2);
+      line-height: 1.8;
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    #story-body p {
+      margin-bottom: 8px;
+    }
+
+    #story-buttons {
+      padding: 12px 16px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    #story-buttons button {
+      padding: 11px 16px;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text);
+      font-family: var(--font-title);
+      font-size: 14px;
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: left;
+    }
+
+    #story-buttons button:hover {
+      border-color: rgba(147, 51, 234, 0.5);
+      color: #fff;
+      background: rgba(147, 51, 234, 0.06);
+    }
+
+    #story-buttons button:disabled {
+      opacity: 0.2;
+      cursor: not-allowed;
+    }
+
+    /* ─── WING UNLOCK BANNER ─── */
+    #wing-banner {
+      position: fixed;
+      top: 90px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(10, 0, 20, 0.95);
+      border: 1px solid var(--neon-purple);
+      border-radius: 6px;
+      padding: 12px 24px;
+      text-align: center;
+      z-index: 600;
+      animation: bannerDrop 0.3s ease;
+      display: none;
+      box-shadow: 0 0 30px rgba(147, 51, 234, 0.3);
+    }
+
+    @keyframes bannerDrop {
+      from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
+    }
+
+    .wb-sub {
+      font-family: var(--font-mono);
+      font-size: 8px;
+      letter-spacing: 2px;
+      color: var(--neon-purple);
+      margin-bottom: 4px;
+    }
+
+    .wb-title {
+      font-family: var(--font-title);
+      font-size: 20px;
+      color: #fff;
+      letter-spacing: 2px;
+    }
+
+    .wb-desc {
+      font-size: 10px;
+      color: var(--text2);
+      margin-top: 4px;
+      max-width: 280px;
+      line-height: 1.5;
+    }
+
+    /* ─── ACHIEVEMENT TOAST ─── */
+    #notif-toast {
+      display: none;
+      position: fixed;
+      bottom: 44px;
+      right: 16px;
+      background: var(--bg2);
+      border-left: 3px solid var(--neon-purple);
+      padding: 10px 14px;
+      max-width: 260px;
+      z-index: 700;
+      animation: toastSlide 0.25s ease;
+      border-radius: 0 4px 4px 0;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    }
+
+    @keyframes toastSlide {
+      from {
+        transform: translateX(110%);
+        opacity: 0;
+      }
+
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+    .n-title {
+      font-family: var(--font-mono);
+      font-size: 8px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--neon-purple);
+      margin-bottom: 4px;
+    }
+
+    .n-body {
+      font-size: 10px;
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    #notif-toast.achievement .n-title {
+      color: var(--neon-purple);
+    }
+
+    #notif-toast.wing {
+      border-color: var(--neon-orange);
+    }
+
+    #notif-toast.wing .n-title {
+      color: var(--neon-orange);
+    }
+
+    #notif-toast.warning {
+      border-color: var(--neon-red);
+    }
+
+    #notif-toast.warning .n-title {
+      color: var(--neon-red);
+    }
+
+    /* ─── OUTCOME STRIP ─── */
+    #outcome-strip {
+      display: none;
+      position: fixed;
+      bottom: 44px;
+      left: 208px;
+      right: 0;
+      background: rgba(10, 10, 18, 0.92);
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      padding: 8px 16px;
+      font-size: 11px;
+      color: var(--text2);
+      font-family: var(--font-mono);
+      z-index: 400;
+      animation: fadeIn 0.2s ease;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+      }
+
+      to {
+        opacity: 1;
+      }
+    }
+
+    /* Scrollbars */
+    ::-webkit-scrollbar {
+      width: 3px;
+      height: 3px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 34, 68, 0.2);
+      border-radius: 2px;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="app">
+
+    <div id="headline-bar">
+      <span class="hl-tag">BREAKING</span>
+      <span class="hl-dot">◆</span>
+      <span id="headline"><span class="hl-main"></span></span>
+    </div>
+
+    <div id="hud">
+      <div id="cash-block">
+        <div id="cash">$0</div>
+        <div id="cps">$0.00 / sec</div>
+      </div>
+      <div class="hud-divider"></div>
+      <div id="heat-section">
+        <div id="heat-info">
+          <span id="heat-lbl">Heat</span>
+          <span id="heat-pct">0%</span>
+        </div>
+        <div id="heat-track">
+          <div id="heat-fill" style="width:0%"></div>
+        </div>
+      </div>
+      <div class="hud-stat">
+        <div class="hud-label">Heat</div>
+        <div class="hud-val" id="heat-val">0</div>
+      </div>
+      <div class="hud-stat">
+        <div class="hud-label">Rep</div>
+        <div class="hud-val" id="rep-val">0</div>
+      </div>
+      <div class="hud-stat">
+        <div class="hud-label">Cred</div>
+        <div class="hud-val" id="cred-val">0</div>
+      </div>
+      <div id="wings-wrap">
+        <div id="wings-lbl">Empire</div>
+        <div id="wings">
+          <div class="wing-pip" id="wing-cook" title="The Cook">🧪</div>
+          <div class="wing-pip" id="wing-enforcer" title="The Enforcer">🔨</div>
+          <div class="wing-pip" id="wing-ghost" title="The Ghost">🎭</div>
+          <div class="wing-pip" id="wing-don" title="The Don">🤝</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="main">
+      <div id="crime-col">
+        <div id="clicker-wrap" aria-label="Do the deed">
+          <div class="aura-ring"></div>
+          <div class="aura-ring"></div>
+          <div class="aura-ring"></div>
+          <div id="crime-tape"></div>
+          <div id="crime-btn">
+            <div id="crime-emblem">💰</div>
+            <div id="crime-label">DO THE DEED</div>
+          </div>
+        </div>
+        <div id="click-info">+$<span class="val" id="click-val">1</span> per click</div>
+        <div id="detective-panel">
+          <div class="det-head">⬡ Law Enforcement</div>
+        </div>
+      </div>
+
+      <div id="buildings-col">
+        <div class="panel-head">OPERATIONS</div>
+        <div id="buildings-panel"></div>
+      </div>
+
+      <div id="upgrades-col">
+        <div class="panel-head">UPGRADES</div>
+        <div id="upgrades-panel"></div>
+      </div>
+
+      <div id="stats-col">
+        <div class="panel-head">EMPIRE</div>
+        <div id="stats"></div>
+      </div>
+    </div>
+
+    <div id="footer">
+      <span class="footer-brand">MADE MAN</span>
+      <span>Everything is under control</span>
+    </div>
+  </div>
+
+  <!-- EVENT PANEL (slides from RIGHT) -->
+  <div id="event-panel">
+    <div class="panel-cash-strip">
+      <span class="pcs-label">Your cash</span>
+      <span class="pcs-val" id="event-panel-cash">$0</span>
+    </div>
+    <div id="event-type-tag">INCOMING</div>
+    <div id="event-title"></div>
+    <div id="event-body"></div>
+    <div id="event-buttons"></div>
+  </div>
+
+  <!-- STORY PANEL (slides from LEFT) -->
+  <div id="story-panel">
+    <div class="panel-cash-strip">
+      <span class="pcs-label">Your cash</span>
+      <span class="pcs-val" id="story-panel-cash">$0</span>
+    </div>
+    <div id="story-tag">SITUATION</div>
+    <div id="story-title"></div>
+    <div id="story-body"></div>
+    <div id="story-buttons"></div>
+  </div>
+
+  <!-- Wing unlock banner -->
+  <div id="wing-banner">
+    <div class="wb-sub">EMPIRE EXPANDED</div>
+    <div class="wb-title" id="wing-banner-title"></div>
+    <div class="wb-desc" id="wing-banner-desc"></div>
+  </div>
+
+  <div id="notif-toast"></div>
+  <div id="outcome-strip"></div>
+
+  <script src="data.js"></script>
+  <script src="engine.js"></script>
+  <script src="ui.js"></script>
+  <script>
+    // Click val updater
+    setInterval(() => {
+      const el = document.getElementById("click-val");
+      if (el) el.textContent = fmt(G.clickPower * G.globalMult);
+      // Keep cash visible in both panels
+      const v = "$" + fmt(G.cash);
+      const ep = document.getElementById("event-panel-cash");
+      const sp = document.getElementById("story-panel-cash");
+      if (ep) ep.textContent = v;
+      if (sp) sp.textContent = v;
+    }, 200);
+
+    // Emblem progression
+    function updateEmblem() {
+      const e = G.totalEarned;
+      const el = document.getElementById("crime-emblem");
+      if (!el) return;
+      el.textContent = e < 5000 ? "💰" : e < 100000 ? "🔫" : e < 2000000 ? "💊" : e < 50000000 ? "🩸" : e < 500000000 ? "💎" : "👑";
+    }
+    setInterval(updateEmblem, 3000);
+
+    initEngine();
+    initUI();
+  </script>
+</body>
+
+</html>
