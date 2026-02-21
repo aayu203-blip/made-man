@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════
-// MADE MAN — UI RENDERER v2
-// Panel-based events (slide in from sides, game stays visible)
+// MADE MAN — UI RENDERER v3
+// Event delegation throughout (no onclick-in-innerHTML)
 // ═══════════════════════════════════════════════════════
 
 let _uiFrame = 0;
@@ -32,10 +32,10 @@ function cycleHeadline() {
 function render() {
     _uiFrame++;
     renderHUD();
-    if (_uiFrame % 2 === 0) renderBuildings();
-    if (_uiFrame % 3 === 0) renderUpgrades();
-    if (_uiFrame % 5 === 0) renderDetective();
-    if (_uiFrame % 8 === 0) renderStats();
+    if (_uiFrame % 3 === 0) renderBuildings();
+    if (_uiFrame % 4 === 0) renderUpgrades();
+    if (_uiFrame % 6 === 0) renderDetective();
+    if (_uiFrame % 10 === 0) renderStats();
     handlePendingEvent();
     handlePendingStory();
     renderNotification();
@@ -44,7 +44,8 @@ function render() {
 // ─── HUD ─────────────────────────────────────────────────
 function renderHUD() {
     setText("cash", `$${fmt(G.cash)}`);
-    setText("cps", `$${fmtCps(getTotalCps())} / sec`);
+    const cps = getTotalCps();
+    setText("cps", `$${fmtCps(cps)} per second`);
     setText("heat-val", Math.floor(G.heat));
     setText("heat-pct", Math.floor(G.heat) + "%");
     setText("rep-val", Math.floor(G.rep));
@@ -60,12 +61,11 @@ function renderHUD() {
                 : "linear-gradient(90deg,#004422,#22ff66)";
         fill.classList.toggle("critical", G.heat > 90);
     }
-    for (const w of ["cook", "enforcer", "ghost", "don"]) {
+    for (const w of ["cook", "enforcer", "ghost", "don"])
         document.getElementById(`wing-${w}`)?.classList.toggle("active", G.wings[w]);
-    }
 }
 
-// ─── Buildings ───────────────────────────────────────────
+// ─── Buildings — pure HTML, delegation handles clicks ────
 function renderBuildings() {
     const panel = document.getElementById("buildings-panel");
     if (!panel) return;
@@ -73,33 +73,45 @@ function renderBuildings() {
     for (const b of BUILDINGS) {
         const count = G.buildings[b.id] || 0;
         const cost = getBuildingCost(b.id);
-        const cps = getBuildingCps(b.id);
+        const cpsB = getBuildingCps(b.id);
         const afford = G.cash >= cost;
         const wingLocked = b.wing && !G.wings[b.wing];
         const allLocked = b.unlockCondition === "all_wings" && !allWingsUnlocked();
+
         if ((wingLocked || allLocked) && count === 0) {
             const threshold = b.wing ? WING_THRESHOLDS[b.wing]?.cash : null;
             if (!threshold || G.totalEarned < threshold * 0.4) continue;
-            html += `<div class="building locked"><div class="b-name">???</div><div class="b-desc">Unlock more of your empire first.</div></div>`;
+            html += `<div class="building locked"><div class="b-name">???</div><div class="b-desc">Unlock more empire first.</div></div>`;
             continue;
         }
+
         const fi = Math.min(Math.floor(count / 5), (b.flavour?.length || 1) - 1);
         const flavour = b.flavour?.[fi] || "";
         const wTag = b.wing ? `<span class="wing-tag wing-${b.wing}">${b.wing}</span>` : "";
-        html += `<div class="building ${afford ? "can-afford" : "cant-afford"}" onclick="handleBuyBuilding('${b.id}')">
-      <div class="b-top"><span class="b-name">${b.name}${wTag}</span><span class="b-count">${count > 0 ? "×" + count : ""}</span></div>
+
+        // Contribution line: only shown when owned
+        const cpsLine = count > 0
+            ? `<div class="b-contribution">Earning: <span class="val">${fmtCps(cpsB)}</span></div>`
+            : `<div class="b-contribution hint">Earns: ${fmtCps(b.baseCps * 1)} each</div>`;
+
+        html += `<div class="building ${afford ? "can-afford" : "cant-afford"}" data-buy-building="${b.id}">
+      <div class="b-top">
+        <span class="b-name">${b.name}${wTag}</span>
+        ${count > 0 ? `<span class="b-count">×${count}</span>` : ''}
+      </div>
       <div class="b-desc">${b.desc}</div>
       ${flavour ? `<div class="b-flavour">"${flavour}"</div>` : ""}
+      ${cpsLine}
       <div class="b-foot">
         <span class="b-cost ${afford ? "" : "over"}">$${fmt(cost)}</span>
-        ${count > 0 ? `<span class="b-cps">${fmtCps(cps)}</span>` : ""}
+        ${!afford && count === 0 ? `<span class="b-need">need $${fmt(cost - G.cash)} more</span>` : ""}
       </div>
     </div>`;
     }
     panel.innerHTML = html;
 }
 
-// ─── Upgrades ────────────────────────────────────────────
+// ─── Upgrades — delegation handles clicks ────────────────
 function renderUpgrades() {
     const panel = document.getElementById("upgrades-panel");
     if (!panel) return;
@@ -109,32 +121,56 @@ function renderUpgrades() {
     for (const u of avail.slice(0, 10)) {
         const cost = u.cost || Math.floor(getBuildingCost(u.building) * u.costMult);
         const can = G.cash >= cost;
-        html += `<div class="upgrade ${can ? "can-afford" : "cant-afford"}" onclick="handleBuyUpgrade('${u.id}')">
+
+        // Clear effect label
+        let effectLabel = "";
+        if (u.cpsBonus) effectLabel = `+${Math.round((u.cpsBonus - 1) * 100)}% ${u.building} income`;
+        if (u.globalMult) effectLabel = `×${u.globalMult} ALL income`;
+        if (u.clickBonus) effectLabel = `+${Math.round((u.clickBonus - 1) * 100)}% click power`;
+
+        html += `<div class="upgrade ${can ? "can-afford" : "cant-afford"}" data-buy-upgrade="${u.id}">
       <div class="u-name">${u.name}</div>
       <div class="u-desc">${u.desc}</div>
+      ${effectLabel ? `<div class="u-effect">${effectLabel}</div>` : ""}
       <div class="u-cost ${can ? "" : "over"}">$${fmt(cost)}</div>
     </div>`;
     }
     panel.innerHTML = html;
 }
 
-// ─── Detective ───────────────────────────────────────────
+// ─── Detective — simplified ───────────────────────────────
 function renderDetective() {
     const panel = document.getElementById("detective-panel");
     if (!panel) return;
     const d = G.detective, prog = Math.floor(d.progress);
-    const status = prog < 25 ? "Chasing cold leads." :
-        prog < 50 ? "Getting warm. You feel it." :
-            prog < 75 ? "He's in the neighbourhood." :
-                prog < 100 ? "Active investigation. Very close." : "RAID IMMINENT";
+
+    // Simple threat level language
+    const threat = prog < 20 ? { label: "Not watching you", color: "#22ff66" } :
+        prog < 45 ? { label: "Sniffing around", color: "#ff6b1a" } :
+            prog < 70 ? { label: "Building a case", color: "#ff6b1a" } :
+                prog < 90 ? { label: "⚠ About to move", color: "#ff2244" } :
+                    { label: "🚨 RAID COMING", color: "#ff2244" };
+
+    const bribeCost = getBribeCost();
+    const canBribe = G.cash >= bribeCost;
+
     panel.innerHTML = `
-    <div class="det-head">⬡ Law Enforcement</div>
-    <div class="det-namerow"><span class="det-name">${d.name}</span><span class="det-num">#${d.count}</span></div>
-    <div class="det-track-bg"><div class="det-track-fill" style="width:${prog}%"></div></div>
-    <div class="det-status">${status}</div>
+    <div class="det-head">⬡ The Cop</div>
+    <div class="det-namerow">
+      <span class="det-name">${d.name}</span>
+      <span class="det-num" style="color:${threat.color}">${threat.label}</span>
+    </div>
+    <div class="det-track-bg">
+      <div class="det-track-fill" style="width:${prog}%;background:${threat.color}"></div>
+    </div>
+    <div class="det-hint">
+      ${prog < 20 ? "High heat fills this bar. Keep heat low." : prog < 70 ? "Pay him off or lay low." : "Act now or face a raid."}
+    </div>
     <div class="det-actions">
-      <button onclick="handleBribeDetective()">Bribe — $${fmt(getBribeCost())}</button>
-      <button class="elim" onclick="handleKillDetective()">Eduardo handles it</button>
+      <button data-action="bribe" class="${canBribe ? "" : "disabled-btn"}" title="${canBribe ? "" : "Not enough cash"}">
+        Pay off — $${fmt(bribeCost)}${!canBribe ? " ✗" : ""}
+      </button>
+      <button data-action="kill" class="elim">Eduardo handles it (+heat)</button>
     </div>`;
 }
 
@@ -142,9 +178,10 @@ function renderDetective() {
 function renderStats() {
     const el = document.getElementById("stats");
     if (!el) return;
+    const cps = getTotalCps();
     const rows = [
         ["Total Earned", `$${fmt(G.totalEarned)}`, "green"],
-        ["Income", fmtCps(getTotalCps()), ""],
+        ["Per Second", fmtCps(cps), cps > 0 ? "green" : ""],
         ["Buildings", G.totalBuildings, ""],
         ["Upgrades", G.purchasedUpgrades.length, ""],
         ["Achievements", `${G.achievements.length}/${ACHIEVEMENTS.length}`, "purple"],
@@ -154,89 +191,97 @@ function renderStats() {
     ];
     el.innerHTML = rows.map(([l, v, cls]) =>
         `<div class="stat-row"><span class="s-label">${l}</span><span class="s-val ${cls}">${v}</span></div>`
-    ).join("") + (canPrestige() ? `<button class="prestige-btn" onclick="handlePrestige()">TAKE THE FALL</button>` : "");
+    ).join("") + (canPrestige() ? `<button id="prestige-btn" class="prestige-btn">TAKE THE FALL</button>` : "");
+
+    // Re-attach prestige button via delegation (same mechanism)
+    document.getElementById("prestige-btn")?.addEventListener("click", handlePrestige, { once: true });
 }
 
-// ─── Event Panel (right side) ────────────────────────────
+// ─── EVENT DELEGATION — all panel clicks handled here ────
+function initDelegation() {
+    // Buildings panel
+    document.getElementById("buildings-panel")?.addEventListener("click", e => {
+        const card = e.target.closest("[data-buy-building]");
+        if (card) buyBuilding(card.dataset.buyBuilding);
+    });
+
+    // Upgrades panel
+    document.getElementById("upgrades-panel")?.addEventListener("click", e => {
+        const card = e.target.closest("[data-buy-upgrade]");
+        if (card) buyUpgrade(card.dataset.buyUpgrade);
+    });
+
+    // Detective panel (re-delegate since it re-renders)
+    document.getElementById("detective-panel")?.addEventListener("click", e => {
+        const btn = e.target.closest("button[data-action]");
+        if (!btn) return;
+        if (btn.dataset.action === "bribe") handleBribeDetective();
+        if (btn.dataset.action === "kill") handleKillDetective();
+    });
+}
+
+// ─── Event Panel ─────────────────────────────────────────
 let _eventOpen = false;
 function handlePendingEvent() {
     const panel = document.getElementById("event-panel");
     const ev = G.pendingEvent;
 
-    if (!ev && _eventOpen) {
-        panel.classList.remove("open");
-        _eventOpen = false;
-        return;
-    }
+    if (!ev && _eventOpen) { panel.classList.remove("open"); _eventOpen = false; return; }
     if (!ev) return;
+    if (!_eventOpen) { panel.classList.add("open"); _eventOpen = true; }
 
-    if (!_eventOpen) {
-        panel.classList.add("open");
-        _eventOpen = true;
-    }
-
-    setText("event-type-tag", ev.isRandom ? "INCOMING — " + (ev.name || "EVENT") : "SITUATION");
+    setText("event-type-tag", ev.isRandom ? ev.name?.toUpperCase() || "EVENT" : "SITUATION");
     setText("event-title", ev.title || ev.name || "");
 
     const body = document.getElementById("event-body");
-    if (body) body.innerHTML = ev.isHtml ? ev.html : `<p>${ev.text || ev.desc || ""}</p>`;
+    if (body) body.innerHTML = `<p>${ev.text || ev.desc || ""}</p>`;
 
     const btns = document.getElementById("event-buttons");
     if (!btns) return;
     btns.innerHTML = "";
 
     if (ev.isRandom && !ev.choices) {
-        const b = makeBtn("Take it", false, () => { applyRandomEventEffect(ev); G.pendingEvent = null; });
-        btns.appendChild(b);
+        btns.appendChild(makeBtn("Take it", false, () => { applyRandomEventEffect(ev); G.pendingEvent = null; }));
     } else if (ev.choices) {
         ev.choices.forEach((ch, i) => {
             const label = ch.label || ch;
-            const isDanger = typeof label === "string" && (label.includes("Eduardo") || label.includes("Kill") || label.includes("elim"));
-            const b = makeBtn(label, isDanger, () => {
+            const isDanger = label.includes("Eduardo") || label.includes("Kill") || label.includes("elim");
+            btns.appendChild(makeBtn(label, isDanger, () => {
                 if (ev.isRandom) applyRandomEventEffect(ev, i);
-                else if (ev.id === "raid" || ev.id === "heat_critical") resolveHeatEvent(ev, i);
+                else resolveHeatEvent(ev, i);
                 G.pendingEvent = null;
-            });
-            btns.appendChild(b);
+            }));
         });
     }
-
-    if (ev.autoClose) setTimeout(() => { if (G.pendingEvent?.id === ev.id) G.pendingEvent = null; }, ev.autoClose);
 }
 
-// ─── Story Panel (left side) ────────────────────────────
+// ─── Story Panel ─────────────────────────────────────────
 let _storyOpen = false;
 function handlePendingStory() {
     const panel = document.getElementById("story-panel");
     const ev = G.pendingStory;
 
-    if (!ev && _storyOpen) {
-        panel.classList.remove("open");
-        _storyOpen = false;
-        return;
-    }
+    if (!ev && _storyOpen) { panel.classList.remove("open"); _storyOpen = false; return; }
     if (!ev) return;
-
     if (!_storyOpen) { panel.classList.add("open"); _storyOpen = true; }
 
     setText("story-tag", "SITUATION");
     setText("story-title", ev.title);
     const body = document.getElementById("story-body");
-    if (body) body.innerHTML = ev.isHtml ? ev.html : `<p>${ev.text}</p>`;
+    if (body) body.innerHTML = `<p>${ev.text}</p>`;
 
     const btns = document.getElementById("story-buttons");
     if (!btns) return;
     btns.innerHTML = "";
 
     ev.choices.forEach((ch, i) => {
-        const canUse = !ch.disabled || (ch.disabledReason?.includes("Stage 6") && G.wings.don);
+        const canUse = !ch.disabled;
         const b = makeBtn(ch.label, false, () => {
-            const outcome = ch.outcome;
             resolveStory(ev, i);
-            if (outcome) showOutcome(outcome);
+            if (ch.outcome) showOutcome(ch.outcome);
         });
         b.disabled = !canUse;
-        if (ch.disabled && !canUse) b.title = ch.disabledReason || "";
+        if (!canUse) b.title = ch.disabledReason || "Not available";
         btns.appendChild(b);
     });
 }
@@ -245,7 +290,7 @@ function makeBtn(label, danger, onClick) {
     const b = document.createElement("button");
     b.textContent = label;
     if (danger) b.className = "danger-choice";
-    b.onclick = onClick;
+    b.addEventListener("click", onClick);
     return b;
 }
 
@@ -265,12 +310,16 @@ function resolveHeatEvent(ev, idx) {
     if (ef.detectiveKill) killDetective();
     if (ef.fixerEvent) G.fixerEvents++;
     if (ef.repDelta) G.rep += ef.repDelta;
+    if (ef.darkMode) G.heatPaused = ef.darkMode;
+    // Bribe cost events
+    if (ef.cost === "15pct") {
+        const cost = G.cash * 0.15;
+        G.cash = Math.max(0, G.cash - cost);
+    }
 }
 
 // ─── Notification toast ──────────────────────────────────
 let _notifVisible = false;
-const _notifQueue2 = [];
-
 function renderNotification() {
     if (_notifVisible) return;
     const n = popNotification();
@@ -284,19 +333,19 @@ function renderNotification() {
     setTimeout(() => { el.style.display = "none"; _notifVisible = false; }, 3500);
 }
 
-// ─── Wing unlock banner ──────────────────────────────────
-// Override the engine's queueNotification for wing type to use banner
-const _origQueueNotif = queueNotification;
-
-// ─── Click handlers ──────────────────────────────────────
-function handleBuyBuilding(id) { buyBuilding(id); }
-function handleBuyUpgrade(id) { buyUpgrade(id); }
-function handleBribeDetective() { bribeDetective(); }
+// ─── Action handlers ─────────────────────────────────────
+function handleBribeDetective() {
+    if (G.cash < getBribeCost()) {
+        showOutcome("Not enough cash to pay him off.");
+        return;
+    }
+    bribeDetective();
+}
 function handleKillDetective() { killDetective(); }
 function handlePrestige() {
     if (!canPrestige()) return;
     const bonus = triggerPrestige();
-    showOutcome("Prison Reset complete. Perk: " + bonus);
+    showOutcome("Prison Reset done. Perk unlocked: " + bonus);
 }
 
 // ─── Cash particle ───────────────────────────────────────
@@ -324,9 +373,10 @@ function initUI() {
     setInterval(render, 100);
     setInterval(cycleHeadline, 8000);
     cycleHeadline();
+    initDelegation();
 
     const wrap = document.getElementById("clicker-wrap");
-    wrap?.addEventListener("click", (e) => {
+    wrap?.addEventListener("click", e => {
         doClick();
         wrap.classList.add("clicked");
         setTimeout(() => wrap.classList.remove("clicked"), 120);

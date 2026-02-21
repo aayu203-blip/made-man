@@ -421,11 +421,8 @@ function triggerWorldChange(key) {
 function sendToPortals(key) {
     try {
         if (typeof PortalsSdk === "undefined") return;
-        // Each world change maps to a quest name in the Portals room
-        PortalsSdk.sendMessageToUnity(JSON.stringify({
-            TaskName: "world_" + key,
-            TaskTargetState: "SetActiveToCompleted"
-        }));
+        // Portals expects sendMessageToUnity(questName, newState)
+        PortalsSdk.sendMessageToUnity("world_" + key, "inProgress");
     } catch (e) { }
 }
 
@@ -468,13 +465,24 @@ function tick() {
 // ─── Format Helpers ──────────────────────────────────────
 function fmt(n) {
     if (!isFinite(n) || isNaN(n)) return "0";
+    if (n < 0) return "-" + fmt(-n);
     const suffixes = ["", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc"];
     let i = 0;
     while (n >= 1000 && i < suffixes.length - 1) { n /= 1000; i++; }
-    return (i === 0 ? Math.floor(n) : n.toFixed(2)) + suffixes[i];
+    if (i === 0) {
+        if (n >= 100) return Math.floor(n) + "";
+        if (n >= 10) return n.toFixed(1);
+        if (n >= 1) return n.toFixed(2);
+        // Sub-1: show enough precision to be meaningful
+        return n.toFixed(2);
+    }
+    return n.toFixed(2) + suffixes[i];
 }
 
-function fmtCps(n) { return fmt(n) + "/s"; }
+function fmtCps(n) {
+    if (!isFinite(n) || isNaN(n) || n < 0.001) return "0.00/s";
+    return fmt(n) + "/s";
+}
 
 // ─── Init ────────────────────────────────────────────────
 function initEngine() {
