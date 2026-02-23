@@ -1,9 +1,18 @@
 // ═══════════════════════════════════════════════════════
 // MADE MAN — UI RENDERER v3
 // Event delegation throughout (no onclick-in-innerHTML)
+// Panel cache: DOM only updated when content actually changes
 // ═══════════════════════════════════════════════════════
 
 let _uiFrame = 0;
+const _panelCache = {}; // id → last rendered html string
+
+function setPanel(id, html) {
+    if (_panelCache[id] === html) return; // no change → don't touch DOM
+    _panelCache[id] = html;
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = html;
+}
 
 // ─── Headlines ───────────────────────────────────────────
 const HEADLINES = [
@@ -108,7 +117,7 @@ function renderBuildings() {
       </div>
     </div>`;
     }
-    panel.innerHTML = html;
+    setPanel("buildings-panel", html);
 }
 
 // ─── Upgrades — delegation handles clicks ────────────────
@@ -116,7 +125,7 @@ function renderUpgrades() {
     const panel = document.getElementById("upgrades-panel");
     if (!panel) return;
     const avail = UPGRADES.filter(u => isUpgradeAvailable(u));
-    if (!avail.length) { panel.innerHTML = '<div class="no-upgrades">// nothing available yet</div>'; return; }
+    if (!avail.length) { setPanel("upgrades-panel", '<div class="no-upgrades">// nothing available yet</div>'); return; }
     let html = "";
     for (const u of avail.slice(0, 10)) {
         const cost = u.cost || Math.floor(getBuildingCost(u.building) * u.costMult);
@@ -125,17 +134,17 @@ function renderUpgrades() {
         // Clear effect label
         let effectLabel = "";
         if (u.cpsBonus) effectLabel = `+${Math.round((u.cpsBonus - 1) * 100)}% ${u.building} income`;
-        if (u.globalMult) effectLabel = `×${u.globalMult} ALL income`;
+        if (u.globalMult) effectLabel = `x${u.globalMult} ALL income`;
         if (u.clickBonus) effectLabel = `+${Math.round((u.clickBonus - 1) * 100)}% click power`;
 
         html += `<div class="upgrade ${can ? "can-afford" : "cant-afford"}" data-buy-upgrade="${u.id}">
       <div class="u-name">${u.name}</div>
       <div class="u-desc">${u.desc}</div>
-      ${effectLabel ? `<div class="u-effect">${effectLabel}</div>` : ""}
+      ${effectLabel ? '<div class="u-effect">' + effectLabel + '</div>' : ""}
       <div class="u-cost ${can ? "" : "over"}">$${fmt(cost)}</div>
     </div>`;
     }
-    panel.innerHTML = html;
+    setPanel("upgrades-panel", html);
 }
 
 // ─── Detective — simplified ───────────────────────────────
@@ -154,24 +163,18 @@ function renderDetective() {
     const bribeCost = getBribeCost();
     const canBribe = G.cash >= bribeCost;
 
-    panel.innerHTML = `
-    <div class="det-head">⬡ The Cop</div>
-    <div class="det-namerow">
-      <span class="det-name">${d.name}</span>
-      <span class="det-num" style="color:${threat.color}">${threat.label}</span>
-    </div>
-    <div class="det-track-bg">
-      <div class="det-track-fill" style="width:${prog}%;background:${threat.color}"></div>
-    </div>
-    <div class="det-hint">
-      ${prog < 20 ? "High heat fills this bar. Keep heat low." : prog < 70 ? "Pay him off or lay low." : "Act now or face a raid."}
-    </div>
-    <div class="det-actions">
-      <button data-action="bribe" class="${canBribe ? "" : "disabled-btn"}" title="${canBribe ? "" : "Not enough cash"}">
-        Pay off — $${fmt(bribeCost)}${!canBribe ? " ✗" : ""}
-      </button>
-      <button data-action="kill" class="elim">Eduardo handles it (+heat)</button>
-    </div>`;
+    const detHtml = '<div class="det-head">⬡ The Cop</div>' +
+        '<div class="det-namerow">' +
+        '<span class="det-name">' + d.name + '</span>' +
+        '<span class="det-num" style="color:' + threat.color + '">' + threat.label + '</span>' +
+        '</div>' +
+        '<div class="det-track-bg"><div class="det-track-fill" style="width:' + prog + '%;background:' + threat.color + '"></div></div>' +
+        '<div class="det-hint">' + (prog < 20 ? 'High heat fills this bar. Keep heat low.' : prog < 70 ? 'Pay him off or lay low.' : 'Act now or face a raid.') + '</div>' +
+        '<div class="det-actions">' +
+        '<button data-action="bribe" class="' + (canBribe ? '' : 'disabled-btn') + '" title="' + (canBribe ? '' : 'Not enough cash') + '">Pay off — $' + fmt(bribeCost) + (canBribe ? '' : ' x') + '</button>' +
+        '<button data-action="kill" class="elim">Eduardo handles it (+heat)</button>' +
+        '</div>';
+    setPanel("detective-panel", detHtml);
 }
 
 // ─── Stats ───────────────────────────────────────────────
