@@ -39,6 +39,7 @@ function defaultState() {
         totalBuildings: 0,
         globalMult: 1,
         permanentMults: [],
+        seenHints: [],              // tracks which tutorial hints have been shown
     };
 }
 
@@ -296,9 +297,13 @@ function tickRandomEvents() {
     // Prestige perk: more frequent events
     if (G.prestigeCount >= 9) G.nextRandomEvent -= 40000;
 
-    const total = RANDOM_EVENTS.reduce((a, e) => a + e.weight, 0);
+    // Filter by minCash gate — player must have this much cash for event to fire
+    const eligible = RANDOM_EVENTS.filter(ev => G.cash >= (ev.minCash || 0));
+    if (!eligible.length) return;
+
+    const total = eligible.reduce((a, e) => a + e.weight, 0);
     let r = Math.random() * total;
-    for (const ev of RANDOM_EVENTS) {
+    for (const ev of eligible) {
         r -= ev.weight;
         if (r <= 0) { fireRandomEvent(ev); break; }
     }

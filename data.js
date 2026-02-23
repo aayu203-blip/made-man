@@ -289,14 +289,21 @@ const STORY_EVENTS = [
 ];
 
 const RANDOM_EVENTS = [
-    { id: "re_lucky", name: "🎰 Lucky Score", desc: "Streets are paying tonight.", effect: { cashMult: 3, duration: 30 }, weight: 20 },
-    { id: "re_witness", name: "👻 Witness Issue", desc: "Gone. Let's not dwell.", effect: { heatDelta: -30 }, weight: 15 },
-    { id: "re_rival", name: "⚡ Rival Slips Up", desc: "Take their income. 60 seconds.", effect: { cpsMult: 2, duration: 60 }, weight: 12 },
-    { id: "re_blackout", name: "📰 News Blackout", desc: "Heat gain paused. 90 seconds.", effect: { heatPause: 90 }, weight: 18 },
-    { id: "re_cop", name: "🤝 Dirty Cop", desc: "€50K gets you a friend on the force.", cost: 50000, effect: { heatMult: 0.5, permanent: true }, weight: 10 },
-    { id: "re_shipment", name: "📦 Hot Shipment", desc: "Income ×5 for 45 seconds.", effect: { cpsMult: 5, duration: 45 }, weight: 8 },
-    { id: "re_the_call", name: "📞 The Call", desc: "Eduardo has work. Take it or pass.", choices: ["Take it", "Pass it"], effect: { accept: { cash: 500000 }, decline: { repDelta: 10 } }, weight: 10 },
-    { id: "re_problem", name: "💣 The Problem", desc: "15 seconds. Choose now.", timer: 15, effect: { succeed: { heatDelta: -20 }, fail: { heatDelta: 40, cashPct: -0.05 } }, weight: 7 },
+    // minCash = minimum cash the player must have for this event to fire
+    { id: "re_lucky", name: "🎰 Lucky Score", desc: "Streets are paying tonight. Income ×3 for 30 seconds.", effect: { cashMult: 3, duration: 30 }, weight: 20, minCash: 0 },
+    { id: "re_witness", name: "👻 Witness Issue", desc: "Someone saw too much. Problem resolved. Heat drops 30.", effect: { heatDelta: -30 }, weight: 15, minCash: 500 },
+    { id: "re_rival", name: "⚡ Rival Slips Up", desc: "Competitor made a mistake. Take their income for 60 seconds.", effect: { cpsMult: 2, duration: 60 }, weight: 12, minCash: 1000 },
+    { id: "re_blackout", name: "📰 News Blackout", desc: "Press looks away. Heat gain paused for 90 seconds.", effect: { heatPause: 90 }, weight: 18, minCash: 200 },
+    {
+        id: "re_cop", name: "🤝 Dirty Cop", desc: "Officer wants $50K to look the other way — permanently halves your heat rate.",
+        cost: 50000, effect: { heatMult: 0.5, permanent: true }, weight: 10, minCash: 75000
+    },
+    { id: "re_shipment", name: "📦 Hot Shipment", desc: "Cargo came in clean. Income ×5 for 45 seconds.", effect: { cpsMult: 5, duration: 45 }, weight: 8, minCash: 5000 },
+    {
+        id: "re_the_call", name: "📞 The Call", desc: "Eduardo has a job. $500K if you take it. Clean conscience if you don't.", choices: ["Take it", "Pass"],
+        effect: { accept: { cash: 500000 }, decline: { repDelta: 10 } }, weight: 10, minCash: 50000
+    },
+    { id: "re_problem", name: "💣 The Problem", desc: "15 seconds to decide. Take the deal or walk away clean.", timer: 15, effect: { succeed: { heatDelta: -20 }, fail: { heatDelta: 40, cashPct: -0.05 } }, weight: 7, minCash: 3000 },
 ];
 
 const ACHIEVEMENTS = [

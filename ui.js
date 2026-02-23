@@ -54,24 +54,49 @@ function render() {
 function renderHUD() {
     setText("cash", `$${fmt(G.cash)}`);
     const cps = getTotalCps();
-    setText("cps", `$${fmtCps(cps)} per second`);
-    setText("heat-val", Math.floor(G.heat));
-    setText("heat-pct", Math.floor(G.heat) + "%");
-    setText("rep-val", Math.floor(G.rep));
-    setText("cred-val", G.cred);
+    setText("cps", cps > 0 ? `earning $${fmtCps(cps)} passively` : "click to earn");
 
-    const fill = document.getElementById("heat-fill");
-    if (fill) {
-        fill.style.width = G.heat + "%";
-        fill.style.background = G.heat > 75
-            ? "linear-gradient(90deg,#8b0000,#ff2244)"
-            : G.heat > 40
-                ? "linear-gradient(90deg,#7a3000,#ff6b1a)"
-                : "linear-gradient(90deg,#004422,#22ff66)";
-        fill.classList.toggle("critical", G.heat > 90);
+    // Heat — only shown once player has buildings (passive income = heat risk)
+    const showHeat = G.totalBuildings > 0;
+    const heatSection = document.getElementById("heat-section");
+    const heatStat = document.getElementById("heat-stat");
+    if (heatSection) heatSection.style.display = showHeat ? "" : "none";
+    if (heatStat) heatStat.style.display = showHeat ? "" : "none";
+
+    if (showHeat) {
+        setText("heat-val", Math.floor(G.heat));
+        setText("heat-pct", Math.floor(G.heat) + "%");
+        const fill = document.getElementById("heat-fill");
+        if (fill) {
+            fill.style.width = G.heat + "%";
+            fill.style.background = G.heat > 75
+                ? "linear-gradient(90deg,#8b0000,#ff2244)"
+                : G.heat > 40
+                    ? "linear-gradient(90deg,#7a3000,#ff6b1a)"
+                    : "linear-gradient(90deg,#004422,#22ff66)";
+            fill.classList.toggle("critical", G.heat > 90);
+        }
     }
+
+    // Rep — only once player has some
+    const repStat = document.getElementById("rep-stat");
+    if (repStat) repStat.style.display = G.rep > 0 ? "" : "none";
+    if (G.rep > 0) setText("rep-val", Math.floor(G.rep));
+
+    // Cred — only after first prestige
+    const credStat = document.getElementById("cred-stat");
+    if (credStat) credStat.style.display = G.prestigeCount > 0 ? "" : "none";
+    if (G.prestigeCount > 0) setText("cred-val", G.cred);
+
+    // Wings — only once at least one is unlocked
+    const wingsWrap = document.getElementById("wings-wrap");
+    const anyWing = G.wings.cook || G.wings.enforcer || G.wings.ghost || G.wings.don;
+    if (wingsWrap) wingsWrap.style.display = anyWing ? "" : "none";
     for (const w of ["cook", "enforcer", "ghost", "don"])
         document.getElementById(`wing-${w}`)?.classList.toggle("active", G.wings[w]);
+
+    // Tutorial hints
+    maybeShowHint();
 }
 
 // ─── Buildings — pure HTML, delegation handles clicks ────
@@ -147,13 +172,19 @@ function renderUpgrades() {
     setPanel("upgrades-panel", html);
 }
 
-// ─── Detective — simplified ───────────────────────────────
+// ─── Detective — progressive reveal ─────────────────────
 function renderDetective() {
     const panel = document.getElementById("detective-panel");
     if (!panel) return;
+
+    // Fully hidden until player has passive income (buildings generate heat over time)
+    if (G.totalBuildings === 0) {
+        setPanel("detective-panel", '<div class="det-head">⬡ Law Enforcement</div><div class="det-hint" style="margin-top:6px">Nothing to worry about yet. Stay clean.</div>');
+        return;
+    }
+
     const d = G.detective, prog = Math.floor(d.progress);
 
-    // Simple threat level language
     const threat = prog < 20 ? { label: "Not watching you", color: "#22ff66" } :
         prog < 45 ? { label: "Sniffing around", color: "#ff6b1a" } :
             prog < 70 ? { label: "Building a case", color: "#ff6b1a" } :
@@ -163,7 +194,13 @@ function renderDetective() {
     const bribeCost = getBribeCost();
     const canBribe = G.cash >= bribeCost;
 
-    const detHtml = '<div class="det-head">⬡ The Cop</div>' +
+    // First-time detective explanation
+    const firstTimeTip = !G.seenHints?.includes('detective')
+        ? '<div class="tutorial-tip">⚡ The cop watches you. His bar fills as your <b>heat</b> rises. Pay him off to reset it — or let Eduardo deal with him.</div>'
+        : '';
+
+    const detHtml = (firstTimeTip ? firstTimeTip : '') +
+        '<div class="det-head">⬡ The Cop</div>' +
         '<div class="det-namerow">' +
         '<span class="det-name">' + d.name + '</span>' +
         '<span class="det-num" style="color:' + threat.color + '">' + threat.label + '</span>' +
@@ -171,7 +208,7 @@ function renderDetective() {
         '<div class="det-track-bg"><div class="det-track-fill" style="width:' + prog + '%;background:' + threat.color + '"></div></div>' +
         '<div class="det-hint">' + (prog < 20 ? 'High heat fills this bar. Keep heat low.' : prog < 70 ? 'Pay him off or lay low.' : 'Act now or face a raid.') + '</div>' +
         '<div class="det-actions">' +
-        '<button data-action="bribe" class="' + (canBribe ? '' : 'disabled-btn') + '" title="' + (canBribe ? '' : 'Not enough cash') + '">Pay off — $' + fmt(bribeCost) + (canBribe ? '' : ' x') + '</button>' +
+        '<button data-action="bribe" class="' + (canBribe ? '' : 'disabled-btn') + '" title="' + (canBribe ? '' : 'Not enough cash') + '">Pay off — $' + fmt(bribeCost) + (canBribe ? '' : ' ✗') + '</button>' +
         '<button data-action="kill" class="elim">Eduardo handles it (+heat)</button>' +
         '</div>';
     setPanel("detective-panel", detHtml);
@@ -200,7 +237,66 @@ function renderStats() {
     document.getElementById("prestige-btn")?.addEventListener("click", handlePrestige, { once: true });
 }
 
-// ─── EVENT DELEGATION — all panel clicks handled here ────
+// ─── Tutorial hint system ────────────────────────────────
+const HINTS = [
+    // id, condition fn, one-time message
+    {
+        id: 'first_buy', check: () => G.totalBuildings > 0 && G.totalEarned > 10,
+        title: 'Passive income',
+        body: 'Buildings earn money for you automatically, every second — even when you stop clicking. Watch the <b>earning X/s</b> counter.'
+    },
+    {
+        id: 'heat_intro', check: () => G.heat > 5,
+        title: 'Heat',
+        body: '<b>Heat</b> is how hard the law is looking. It rises when you buy things or get noticed. It falls over time. If it hits 100, expect a visit.'
+    },
+    {
+        id: 'detective', check: () => G.totalBuildings >= 1,
+        title: 'The Cop',
+        body: 'A detective is building a case. His bar fills with your heat. Pay him off to reset it, or let Eduardo "handle it" (adds heat, but he goes away).'
+    },
+    {
+        id: 'upgrades', check: () => UPGRADES.some(u => isUpgradeAvailable(u) && G.cash >= (u.cost || getBuildingCost(u.building) * u.costMult)),
+        title: 'Upgrades available',
+        body: 'Check the <b>Upgrades</b> column. Each upgrade multiplies the income of a specific operation — buy them as soon as you can afford them.'
+    },
+    {
+        id: 'heat_high', check: () => G.heat > 50,
+        title: 'Heat is getting high',
+        body: 'Above 50% heat, the cop closes in fast. Lay low (stop clicking for a moment — heat decays naturally), pay him off, or keep a buffer of cash.'
+    },
+    {
+        id: 'rep', check: () => G.rep > 0,
+        title: 'Rep',
+        body: '<b>Rep</b> is earned by buying operations and making the right choices. It unlocks story events and better deals.'
+    },
+];
+
+let _hintTimer = null;
+function maybeShowHint() {
+    if (_hintTimer) return; // one at a time
+    if (!G.seenHints) G.seenHints = [];
+    for (const h of HINTS) {
+        if (G.seenHints.includes(h.id)) continue;
+        if (!h.check()) continue;
+        G.seenHints.push(h.id);
+        showTutorialHint(h.title, h.body);
+        _hintTimer = setTimeout(() => { _hintTimer = null; }, 8000);
+        break;
+    }
+}
+
+function showTutorialHint(title, body) {
+    const el = document.getElementById("tutorial-hint");
+    if (!el) return;
+    el.innerHTML = '<div class="th-title">' + title + '</div><div class="th-body">' + body + '</div>';
+    el.style.display = 'block';
+    el.classList.add('th-in');
+    setTimeout(() => {
+        el.classList.remove('th-in');
+        setTimeout(() => { el.style.display = 'none'; }, 400);
+    }, 7000);
+}
 function initDelegation() {
     // Buildings panel
     document.getElementById("buildings-panel")?.addEventListener("click", e => {
